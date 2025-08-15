@@ -1,0 +1,5 @@
+{
+  "name": "Smart Audiobook Player",
+  "description": "An advanced audiobook player with features like bookmarking, audio clipping, sleep timer, and customizable controls. Load your local audio files and enjoy a tailored listening experience.",
+  "requestFramePermissions": []
+}
