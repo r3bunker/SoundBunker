@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Clip } from '../../types';
-import { formatTime } from '../../utils';
 
 interface ClipsModalProps {
     isOpen: boolean;
@@ -16,29 +15,31 @@ const ClipsModal: React.FC<ClipsModalProps> = ({ isOpen, onClose, clips, onPlayC
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900/70 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                    <h3 className="text-lg font-semibold">Audio Clips ({clips.length})</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    <h3 className="text-xl font-bold">Audio Clips</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl">&times;</button>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto flex-grow">
+                <div className="space-y-3 overflow-y-auto flex-grow pr-2">
                     {clips.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">No clips yet. Use the Clip button to save audio segments!</p>
+                        <div className="h-full flex items-center justify-center">
+                            <p className="text-gray-400 text-center py-8">No clips yet. Use the Clip button to save audio segments!</p>
+                        </div>
                     ) : (
                         clips.map(clip => (
-                            <div key={clip.id} className="bg-gray-700 rounded-lg p-4 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-medium text-sm">{clip.title}</h4>
-                                    <div className="flex items-center space-x-2">
-                                        <button onClick={() => onPlayClip(clip)} className="text-blue-400 hover:text-blue-300 text-sm">Play</button>
-                                        <button onClick={() => { onJumpToClipStart(clip.originalStartTime); onClose(); }} className="text-green-400 hover:text-green-300 text-sm">Go to</button>
-                                        <button onClick={() => onDeleteClip(clip.id)} className="text-red-400 hover:text-red-300 text-sm">Delete</button>
+                            <div key={clip.id} className="bg-white/5 rounded-xl p-4 space-y-3">
+                                <div className="flex items-start justify-between">
+                                    <h4 className="font-semibold text-gray-200">{clip.title}</h4>
+                                    <div className="flex items-center space-x-3 flex-shrink-0 ml-2">
+                                        <button onClick={() => onPlayClip(clip)} className="text-violet-400 hover:text-violet-300 text-sm font-medium">Play</button>
+                                        <button onClick={() => { onJumpToClipStart(clip.originalStartTime); onClose(); }} className="text-green-400 hover:text-green-300 text-sm font-medium">Go to</button>
+                                        <button onClick={() => onDeleteClip(clip.id)} className="text-red-400 hover:text-red-300 text-sm font-medium">Delete</button>
                                     </div>
                                 </div>
-                                <p className="text-gray-300 text-sm leading-relaxed">"{clip.text}"</p>
-                                <div className="flex items-center justify-between text-xs text-gray-400">
+                                <p className="text-gray-400 text-sm leading-relaxed">"{clip.text}"</p>
+                                <div className="flex items-center justify-between text-xs text-gray-500">
                                     <span>Chapter {clip.chapter + 1}</span>
                                     <span>{clip.createdAt}</span>
                                     <span>{Math.round(clip.duration)}s</span>

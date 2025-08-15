@@ -29,6 +29,7 @@ export const useAudioPlayer = (
     const [showFileSelector, setShowFileSelector] = useState(true);
     const [showChapterSelector, setShowChapterSelector] = useState(false);
     const [showClipPlayer, setShowClipPlayer] = useState(false);
+    const [showReport, setShowReport] = useState(false);
 
     // Clip playback state
     const [currentClip, setCurrentClip] = useState<Clip | null>(null);
@@ -360,11 +361,12 @@ export const useAudioPlayer = (
         audiobook, selectedFile, isPlaying, currentTime, duration, playbackRate, volume, sleepTimer,
         bookmarks, clips, currentChapter, isCreatingClip, isParsing, showSettings, showSleepTimer, showClips,
         showFileSelector, showChapterSelector, showClipPlayer, currentClip, isPlayingClip, clipCurrentTime,
+        showReport,
         bluetoothControls, setBluetoothControls,
         handleFileSelect, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
         toggleClipPlayPause, stopClipPlayback, closeClipPlayer, handleClipSeek, deleteClip,
         changePlaybackRate, changeVolume, executeBluetoothAction,
         setSleepTimer, setShowSettings, setShowSleepTimer, setShowClips, setShowFileSelector,
-        setShowChapterSelector, setShowClipPlayer
+        setShowChapterSelector, setShowClipPlayer, setShowReport
     };
 };
