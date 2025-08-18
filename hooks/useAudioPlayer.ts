@@ -5,6 +5,7 @@ import { parseM4BChapters } from '../utils/m4bParser.js';
 import type { Chapter, Bookmark, Clip, Stats, Audiobook } from '../types';
 import { initDB, addBook, getBook, getAllBooks } from '../utils/db.js';
 import type { StoredAudiobook } from '../utils/db.js';
+import { getCoverForBook } from '../utils/coverFetcher.js';
 
 const defaultStats: Stats = {
     listeningActivity: {}, // { 'YYYY-MM-DD': seconds }
@@ -263,9 +264,14 @@ export const useAudioPlayer = (
         };
     }, [audiobook.audioUrl]);
 
-    const loadBook = async (fileKey: string) => {
-        // If a book is already loaded and we're switching to a different one,
-        // save the current book's state immediately to not lose progress.
+    const seekTo = useCallback((time) => {
+        if (audioRef.current && isFinite(time)) {
+            audioRef.current.currentTime = time;
+            setCurrentTime(time);
+        }
+    }, [audioRef]);
+    
+    const loadBook = useCallback(async (fileKey: string) => {
         if (selectedFile?.name && selectedFile.name !== fileKey) {
             saveState();
         }
@@ -282,11 +288,7 @@ export const useAudioPlayer = (
             }
             const audioUrl = URL.createObjectURL(new Blob([fileBuffer]));
     
-            setAudiobook({
-                ...metadata,
-                audioUrl,
-                transcript: [] // Transcript is not persisted
-            });
+            setAudiobook({ ...metadata, audioUrl, transcript: [] });
             setSelectedFile({ name: fileKey });
     
             const savedData = JSON.parse(localStorage.getItem('audiobookPlayerData') || '{}');
@@ -294,13 +296,8 @@ export const useAudioPlayer = (
     
             setBookmarks(bookData?.bookmarks || []);
             
-            // FIX: When loading a book, update the audio URL for all its clips
-            // because the blob URL is regenerated each time.
             const loadedClips = bookData?.clips || [];
-            const updatedClips = loadedClips.map(clip => ({
-                ...clip,
-                originalAudioUrl: audioUrl
-            }));
+            const updatedClips = loadedClips.map(clip => ({ ...clip, originalAudioUrl: audioUrl }));
             setClips(updatedClips);
             
             const seekTime = bookData?.currentTime || 0;
@@ -333,7 +330,7 @@ export const useAudioPlayer = (
         } finally {
             setIsParsing(false);
         }
-    };
+    }, [selectedFile, saveState, audiobook.audioUrl, audioRef, seekTo, setIsParsing, setAudiobook, setSelectedFile, setBookmarks, setClips, setCurrentTime, setCurrentChapter, setShowFileSelector, setIsPlaying]);
     
     const handleFileSelect = useCallback(async (file) => {
         if (!file) return;
@@ -343,6 +340,14 @@ export const useAudioPlayer = (
             const fileBuffer = await file.arrayBuffer();
             const filename = file.name.replace(/\.[^/.]+$/, "");
             
+            let title = filename;
+            let author = "Unknown Author";
+            const parts = filename.split(/ [-–—] /);
+            if (parts.length > 1) {
+                author = parts.pop()?.trim() || "Unknown Author";
+                title = parts.join(' - ').trim();
+            }
+
             let chapters: Chapter[] = [{ id: 1, title: "Start", startTime: 0 }];
             if (file.name.endsWith('.m4b') || file.type === 'audio/mp4' || file.type === 'audio/x-m4a') {
                 try {
@@ -353,15 +358,26 @@ export const useAudioPlayer = (
                 }
             }
             
+            const defaultCover = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='300' viewBox='0 0 200 300'%3E%3Crect width='200' height='300' fill='%231f2937'/%3E%3Ctext x='100' y='140' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3E${title.substring(0, 20)}%3C/text%3E%3Ctext x='100' y='160' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3EAudiobook%3C/text%3E%3C/svg%3E`;
+
             const newBookForDB: StoredAudiobook = {
                 key: file.name,
-                title: filename,
-                author: "Unknown Author",
+                title: title,
+                author: author,
                 narrator: "Unknown Narrator",
-                cover: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='300' viewBox='0 0 200 300'%3E%3Crect width='200' height='300' fill='%231f2937'/%3E%3Ctext x='100' y='140' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3E${filename.substring(0, 20)}%3C/text%3E%3Ctext x='100' y='160' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3EAudiobook%3C/text%3E%3C/svg%3E`,
+                cover: defaultCover,
                 chapters,
                 fileBuffer
             };
+    
+            try {
+                const coverUrl = await getCoverForBook(title, author);
+                if (coverUrl) {
+                    newBookForDB.cover = coverUrl;
+                }
+            } catch (e) {
+                console.error("Failed to fetch cover art, using default.", e);
+            }
     
             await addBook(newBookForDB);
     
@@ -384,14 +400,7 @@ export const useAudioPlayer = (
         } finally {
             setIsParsing(false);
         }
-    }, [audioRef]);
-
-    const seekTo = useCallback((time) => {
-        if (audioRef.current && isFinite(time)) {
-            audioRef.current.currentTime = time;
-            setCurrentTime(time);
-        }
-    }, [audioRef]);
+    }, [loadBook, setLibrary, setIsParsing]);
 
     const togglePlayPause = useCallback(() => {
         if (isPlayingClip) {
