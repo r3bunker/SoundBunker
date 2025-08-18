@@ -1,23 +1,9 @@
 
 import React from 'react';
 import { Play, Pause, StopCircle } from 'lucide-react';
-import { Clip } from '../../types';
 import { formatTime } from '../../utils';
 
-interface ClipPlayerModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    clip: Clip;
-    isPlaying: boolean;
-    currentTime: number;
-    onTogglePlay: () => void;
-    onStop: () => void;
-    onSeek: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
-    onGoToBook: (time: number) => void;
-    audiobookTitle: string;
-}
-
-const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({ isOpen, onClose, clip, isPlaying, currentTime, onTogglePlay, onStop, onSeek, onGoToBook, audiobookTitle }) => {
+const ClipPlayerModal = ({ isOpen, onClose, clip, isPlaying, currentTime, onTogglePlay, onStop, onSeek, onGoToBook, audiobookTitle }) => {
     if (!isOpen) return null;
 
     return (
@@ -45,9 +31,7 @@ const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({ isOpen, onClose, clip
                     <button onClick={onTogglePlay} className="bg-gradient-to-br from-purple-500 to-violet-700 hover:from-purple-600 hover:to-violet-800 rounded-full p-4 transition-colors">
                         {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
                     </button>
-                    <button onClick={onStop} className="text-gray-400 hover:text-white transition-colors">
-                        <StopCircle className="w-8 h-8" />
-                    </button>
+                    
                 </div>
                 <div className="bg-white/5 rounded-lg p-4 mb-6">
                     <p className="text-gray-300 text-sm leading-relaxed italic">"{clip.text}"</p>

@@ -1,0 +1,21 @@
+{
+  "short_name": "Audiobook Player",
+  "name": "Smart Audiobook Player",
+  "description": "An advanced audiobook player with offline capabilities.",
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#111827",
+  "background_color": "#000000"
+}

@@ -1,16 +1,7 @@
 import React from 'react';
-import { Chapter } from '../../types';
 import { formatTime } from '../../utils';
 
-interface ChapterSelectorModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    chapters: Chapter[];
-    currentChapter: number;
-    onSelectChapter: (index: number) => void;
-}
-
-const ChapterSelectorModal: React.FC<ChapterSelectorModalProps> = ({ isOpen, onClose, chapters, currentChapter, onSelectChapter }) => {
+const ChapterSelectorModal = ({ isOpen, onClose, chapters, currentChapter, onSelectChapter }) => {
     if (!isOpen) return null;
 
     const hasIntro = chapters[0]?.title === 'Introduction';

@@ -1,16 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 
-interface AudioVisualizerProps {
-  audioRef: React.RefObject<HTMLAudioElement>;
-  isPlaying: boolean;
-}
-
-const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPlaying }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const animationFrameIdRef = useRef<number | null>(null);
+const AudioVisualizer = ({ audioRef, isPlaying }) => {
+  const canvasRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const sourceRef = useRef(null);
+  const animationFrameIdRef = useRef(null);
 
   useEffect(() => {
     if (!audioRef.current) return;

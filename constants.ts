@@ -1,7 +1,5 @@
 
-import { Audiobook } from './types';
-
-export const DEFAULT_AUDIOBOOK: Audiobook = {
+export const DEFAULT_AUDIOBOOK = {
     title: "Select an Audio Book",
     author: "Unknown Author",
     narrator: "Unknown Narrator",

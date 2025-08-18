@@ -37,7 +37,6 @@ export interface Clip {
   chapter: number;
   createdAt: string;
   originalAudioUrl: string | null;
-  clipBlobUrl: string;
   originalStartTime: number;
   originalEndTime: number;
 }
@@ -46,4 +45,13 @@ export interface BluetoothControls {
     previousFile: string;
     nextFile: string;
     swapButtons: boolean;
+}
+
+export interface BookStats {
+  duration: number;
+}
+
+export interface Stats {
+  listeningActivity: { [date: string]: number };
+  books: { [filename: string]: BookStats };
 }

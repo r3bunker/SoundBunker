@@ -1,17 +1,7 @@
 
 import React from 'react';
-import { Clip } from '../../types';
 
-interface ClipsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    clips: Clip[];
-    onPlayClip: (clip: Clip) => void;
-    onJumpToClipStart: (time: number) => void;
-    onDeleteClip: (id: number) => void;
-}
-
-const ClipsModal: React.FC<ClipsModalProps> = ({ isOpen, onClose, clips, onPlayClip, onJumpToClipStart, onDeleteClip }) => {
+const ClipsModal = ({ isOpen, onClose, clips, onPlayClip, onJumpToClipStart, onDeleteClip }) => {
     if (!isOpen) return null;
 
     return (

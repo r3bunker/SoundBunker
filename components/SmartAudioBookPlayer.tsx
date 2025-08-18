@@ -1,35 +1,34 @@
-
 import React, { useRef } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Bookmark, Clock, Settings, Folder, Scissors, FileText, BarChart2 } from 'lucide-react';
-import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useAudioPlayer } from '../hooks/useAudioPlayer.js';
 import { formatTime } from '../utils';
 import { PLAYBACK_RATES } from '../constants';
-import ClipsModal from './modals/ClipsModal';
-import ClipPlayerModal from './modals/ClipPlayerModal';
-import ChapterSelectorModal from './modals/ChapterSelectorModal';
-import FileSelectorModal from './modals/FileSelectorModal';
-import SettingsModal from './modals/SettingsModal';
-import SleepTimerModal from './modals/SleepTimerModal';
-import AudioVisualizer from './AudioVisualizer';
-import Report from './Report';
+import ClipsModal from './modals/ClipsModal.jsx';
+import ClipPlayerModal from './modals/ClipPlayerModal.jsx';
+import ChapterSelectorModal from './modals/ChapterSelectorModal.jsx';
+import FileSelectorModal from './modals/FileSelectorModal.jsx';
+import SettingsModal from './modals/SettingsModal.jsx';
+import SleepTimerModal from './modals/SleepTimerModal.jsx';
+import AudioVisualizer from './AudioVisualizer.jsx';
+import Report from './Report.jsx';
 
-const SmartAudioBookPlayer: React.FC = () => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const clipAudioRef = useRef<HTMLAudioElement>(null);
+const SmartAudioBookPlayer = () => {
+    const audioRef = useRef(null);
+    const clipAudioRef = useRef(null);
 
     const {
         audiobook, selectedFile, isPlaying, currentTime, duration, playbackRate, sleepTimer,
         bookmarks, clips, currentChapter, isCreatingClip, isParsing, showSettings, showSleepTimer, showClips,
         showFileSelector, showChapterSelector, showClipPlayer, currentClip, isPlayingClip, clipCurrentTime,
-        showReport, bluetoothControls, setBluetoothControls,
-        handleFileSelect, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
+        showReport, stats, bluetoothControls, setBluetoothControls, library,
+        handleFileSelect, loadBook, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
         toggleClipPlayPause, stopClipPlayback, closeClipPlayer, handleClipSeek, deleteClip,
         changePlaybackRate, executeBluetoothAction,
         setSleepTimer, setShowSettings, setShowSleepTimer, setShowClips, setShowFileSelector,
         setShowChapterSelector, setShowReport
     } = useAudioPlayer(audioRef, clipAudioRef);
 
-    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const handleSeek = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
         seekTo(percent * duration);
@@ -37,7 +36,6 @@ const SmartAudioBookPlayer: React.FC = () => {
 
     const hasIntro = audiobook.chapters[0]?.title === 'Introduction';
     const displayChapterNumber = hasIntro ? currentChapter : currentChapter + 1;
-    const totalDisplayChapters = hasIntro ? audiobook.chapters.length - 1 : audiobook.chapters.length;
 
     const currentChapterTitleDisplay = (hasIntro && currentChapter === 0)
         ? audiobook.chapters[0].title
@@ -152,10 +150,10 @@ const SmartAudioBookPlayer: React.FC = () => {
             <ClipsModal isOpen={showClips} onClose={() => setShowClips(false)} clips={clips} onPlayClip={playClip} onJumpToClipStart={seekTo} onDeleteClip={deleteClip} />
             {currentClip && <ClipPlayerModal isOpen={showClipPlayer} onClose={closeClipPlayer} clip={currentClip} isPlaying={isPlayingClip} currentTime={clipCurrentTime} onTogglePlay={toggleClipPlayPause} onStop={stopClipPlayback} onSeek={handleClipSeek} onGoToBook={seekTo} audiobookTitle={audiobook.title}/>}
             <ChapterSelectorModal isOpen={showChapterSelector} onClose={() => setShowChapterSelector(false)} chapters={audiobook.chapters} currentChapter={currentChapter} onSelectChapter={(index) => seekTo(audiobook.chapters[index].startTime)} />
-            <FileSelectorModal isOpen={showFileSelector} onClose={() => setShowFileSelector(false)} onFileSelect={handleFileSelect} selectedFile={selectedFile} isParsing={isParsing} />
+            <FileSelectorModal isOpen={showFileSelector} onClose={() => selectedFile && setShowFileSelector(false)} onFileSelect={handleFileSelect} isParsing={isParsing} library={library} onLoadBook={loadBook} canBeClosed={!!selectedFile} />
             <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} bluetoothControls={bluetoothControls} setBluetoothControls={setBluetoothControls} executeBluetoothAction={executeBluetoothAction} />
             <SleepTimerModal isOpen={showSleepTimer} onClose={() => setShowSleepTimer(false)} onSetTimer={(mins) => setSleepTimer(mins * 60)} />
-            <Report isOpen={showReport} onClose={() => setShowReport(false)} />
+            <Report isOpen={showReport} onClose={() => setShowReport(false)} stats={stats} currentTime={currentTime} duration={duration} />
         </div>
     );
 };

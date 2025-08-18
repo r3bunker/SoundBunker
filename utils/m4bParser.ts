@@ -1,7 +1,7 @@
 import type { Chapter } from '../types';
 
 // Type declaration for the global mp4box.js library
-declare const MP4Box: any;
+declare var MP4Box: any;
 
 export const parseM4BChapters = (fileBuffer: ArrayBuffer): Promise<Chapter[]> => {
   return new Promise((resolve, reject) => {
@@ -30,7 +30,7 @@ export const parseM4BChapters = (fileBuffer: ArrayBuffer): Promise<Chapter[]> =>
       const timescale = chapterTrack.timescale;
       mp4boxfile.setExtractionOptions(chapterTrack.id, null, { nbSamples: chapterTrack.nb_samples });
 
-      const parsedChapters: Omit<Chapter, 'id'>[] = [];
+      const parsedChapters: { title: string, startTime: number }[] = [];
       let sampleIndex = 0;
 
       mp4boxfile.onSamples = (track_id: number, user: any, samples: any[]) => {
@@ -56,7 +56,7 @@ export const parseM4BChapters = (fileBuffer: ArrayBuffer): Promise<Chapter[]> =>
         
         parsedChapters.sort((a, b) => a.startTime - b.startTime);
 
-        let finalChapters: Omit<Chapter, 'id'>[];
+        let finalChapters: { title: string, startTime: number }[];
 
         // If the parsed chapters list is empty or doesn't start at the beginning,
         // create a new list with an Introduction at the start.
@@ -80,7 +80,7 @@ export const parseM4BChapters = (fileBuffer: ArrayBuffer): Promise<Chapter[]> =>
       mp4boxfile.start();
     };
 
-    const buffer = fileBuffer as any;
+    const buffer: any = fileBuffer;
     buffer.fileStart = 0;
     mp4boxfile.appendBuffer(buffer);
     mp4boxfile.flush();

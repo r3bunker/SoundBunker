@@ -1,17 +1,8 @@
 
 import React from 'react';
-import { BluetoothControls } from '../../types';
 import { BLUETOOTH_ACTION_OPTIONS } from '../../constants';
 
-interface SettingsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    bluetoothControls: BluetoothControls;
-    setBluetoothControls: React.Dispatch<React.SetStateAction<BluetoothControls>>;
-    executeBluetoothAction: (action: string) => void;
-}
-
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, bluetoothControls, setBluetoothControls, executeBluetoothAction }) => {
+const SettingsModal = ({ isOpen, onClose, bluetoothControls, setBluetoothControls, executeBluetoothAction }) => {
     if (!isOpen) return null;
 
     return (

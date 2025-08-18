@@ -1,13 +1,7 @@
 
 import React from 'react';
 
-interface SleepTimerModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSetTimer: (minutes: number) => void;
-}
-
-const SleepTimerModal: React.FC<SleepTimerModalProps> = ({ isOpen, onClose, onSetTimer }) => {
+const SleepTimerModal = ({ isOpen, onClose, onSetTimer }) => {
     if (!isOpen) return null;
 
     const timers = [5, 10, 15, 30, 45, 60];

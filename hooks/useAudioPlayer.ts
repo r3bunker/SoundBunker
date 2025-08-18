@@ -1,15 +1,22 @@
-import { useState, useRef, useEffect, useCallback, RefObject } from 'react';
-import { Audiobook, Bookmark, Clip, BluetoothControls, Chapter } from '../types';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { DEFAULT_AUDIOBOOK } from '../constants';
 import { formatTime } from '../utils';
-import { parseM4BChapters } from '../utils/m4bParser';
+import { parseM4BChapters } from '../utils/m4bParser.js';
+import type { Chapter, Bookmark, Clip, Stats, Audiobook } from '../types';
+import { initDB, addBook, getBook, getAllBooks } from '../utils/db.js';
+import type { StoredAudiobook } from '../utils/db.js';
+
+const defaultStats: Stats = {
+    listeningActivity: {}, // { 'YYYY-MM-DD': seconds }
+    books: {} // { 'filename.m4b': { duration: 3600 } }
+};
 
 export const useAudioPlayer = (
-    audioRef: RefObject<HTMLAudioElement>,
-    clipAudioRef: RefObject<HTMLAudioElement>
+    audioRef,
+    clipAudioRef
 ) => {
     const [audiobook, setAudiobook] = useState<Audiobook>(DEFAULT_AUDIOBOOK);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -21,6 +28,10 @@ export const useAudioPlayer = (
     const [currentChapter, setCurrentChapter] = useState(0);
     const [isCreatingClip, setIsCreatingClip] = useState(false);
     const [isParsing, setIsParsing] = useState(false);
+    
+    const [stats, setStats] = useState<Stats>(defaultStats);
+    const [library, setLibrary] = useState<Omit<StoredAudiobook, 'fileBuffer'>[]>([]);
+    const secondsListenedRef = useRef(0);
 
     // Modals visibility state
     const [showSettings, setShowSettings] = useState(false);
@@ -32,27 +43,145 @@ export const useAudioPlayer = (
     const [showReport, setShowReport] = useState(false);
 
     // Clip playback state
-    const [currentClip, setCurrentClip] = useState<Clip | null>(null);
+    const [currentClip, setCurrentClip] = useState(null);
     const [isPlayingClip, setIsPlayingClip] = useState(false);
     const [clipCurrentTime, setClipCurrentTime] = useState(0);
     const [savedBookPosition, setSavedBookPosition] = useState(0);
 
-    const [bluetoothControls, setBluetoothControls] = useState<BluetoothControls>({
+    const [bluetoothControls, setBluetoothControls] = useState({
         previousFile: 'Rewind 45 s',
-        nextFile: 'Add bookmark',
+        nextFile: 'Create Clip',
         swapButtons: false
     });
 
-    const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sleepTimerRef = useRef(null);
+    const hasLoadedInitialData = useRef(false);
+
+    // --- DATA PERSISTENCE & INITIAL LOAD ---
+    useEffect(() => {
+        if (hasLoadedInitialData.current) return;
+        hasLoadedInitialData.current = true;
+
+        const loadInitialData = async () => {
+            try {
+                // 1. Initialize DB and load library
+                await initDB();
+                const books = await getAllBooks();
+                setLibrary(books);
+
+                // 2. Load global settings and stats from localStorage
+                const savedData = JSON.parse(localStorage.getItem('audiobookPlayerData') || '{}');
+                if (savedData.globalSettings?.bluetoothControls) {
+                    setBluetoothControls(savedData.globalSettings.bluetoothControls);
+                }
+                setStats(savedData.stats || defaultStats);
+
+                // 3. Load the last played book
+                if (savedData.lastPlayedFile && books.some(b => b.key === savedData.lastPlayedFile)) {
+                    await loadBook(savedData.lastPlayedFile);
+                } else if (books.length > 0) {
+                    setShowFileSelector(true);
+                } else {
+                    setShowFileSelector(true);
+                }
+
+            } catch (e) {
+                console.error("Failed to load initial data", e);
+                setShowFileSelector(true);
+                setStats(defaultStats);
+            }
+        };
+
+        loadInitialData();
+    }, []);
+
+    // Debounced save effect
+    const saveState = useCallback(() => {
+        if (!selectedFile?.name) return;
+        try {
+            const savedData = JSON.parse(localStorage.getItem('audiobookPlayerData') || '{}');
+            
+            const newBookData = { ...(savedData.bookData || {}) };
+            newBookData[selectedFile.name] = {
+                currentTime,
+                bookmarks,
+                clips
+            };
+            
+            const dataToSave = {
+                globalSettings: { bluetoothControls },
+                stats,
+                bookData: newBookData,
+                lastPlayedFile: selectedFile.name
+            };
+            localStorage.setItem('audiobookPlayerData', JSON.stringify(dataToSave));
+        } catch (e) {
+            console.error("Failed to save data", e);
+        }
+    }, [selectedFile, bluetoothControls, stats, currentTime, bookmarks, clips]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if(selectedFile) saveState();
+        }, 2000); // Save 2 seconds after the last change
+        return () => clearTimeout(handler);
+    }, [currentTime, bookmarks, clips, stats, bluetoothControls, saveState, selectedFile]);
+
+    // --- LISTENING TRACKER ---
+    useEffect(() => {
+        let intervalId;
+        const flushSeconds = () => {
+            if (secondsListenedRef.current > 0) {
+                 const today = new Date().toISOString().split('T')[0];
+                 setStats(prevStats => {
+                    const newActivity = { ...prevStats.listeningActivity };
+                    const elapsed = Math.round(secondsListenedRef.current);
+                    newActivity[today] = (newActivity[today] || 0) + elapsed;
+                    return { ...prevStats, listeningActivity: newActivity };
+                });
+                secondsListenedRef.current = 0;
+            }
+        };
+
+        if (isPlaying) {
+            intervalId = setInterval(() => {
+                secondsListenedRef.current += 1;
+                if (secondsListenedRef.current > 0 && secondsListenedRef.current % 15 === 0) {
+                    flushSeconds();
+                }
+            }, 1000);
+        } else {
+            flushSeconds();
+        }
+        return () => {
+            clearInterval(intervalId);
+            flushSeconds();
+        }
+    }, [isPlaying]);
 
     // Main Audio Listeners Effect
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
-
+        
         const setAudioData = () => {
-            setDuration(isFinite(audio.duration) ? audio.duration : 0);
+            const newDuration = isFinite(audio.duration) ? audio.duration : 0;
+            setDuration(newDuration);
+            // Update stats with duration for new books
+            if (selectedFile?.name && newDuration > 0) {
+                const currentBookStats = stats.books[selectedFile.name];
+                if (!currentBookStats || currentBookStats.duration !== newDuration) {
+                    setStats(prev => ({
+                        ...prev,
+                        books: {
+                            ...prev.books,
+                            [selectedFile.name]: { duration: newDuration }
+                        }
+                    }));
+                }
+            }
         };
+
         const handleTimeUpdate = () => {
             setCurrentTime(audio.currentTime);
             const chapterIndex = audiobook.chapters.findIndex((chap, i) => {
@@ -84,7 +213,7 @@ export const useAudioPlayer = (
             audio.removeEventListener('pause', handlePause);
             audio.removeEventListener('ended', handlePause);
         };
-    }, [audioRef, audiobook.audioUrl, audiobook.chapters, currentChapter]);
+    }, [audioRef, audiobook.audioUrl, audiobook.chapters, currentChapter, selectedFile, stats.books]);
     
     // Clip Audio Listeners Effect
     useEffect(() => {
@@ -109,92 +238,156 @@ export const useAudioPlayer = (
 
     // Sleep Timer Effect
     useEffect(() => {
-        // Clear any existing timer
-        if (sleepTimerRef.current) {
-            clearTimeout(sleepTimerRef.current);
-        }
-
-        // Set a new timer only if the timer is active and audio is playing
+        if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
         if (sleepTimer > 0 && isPlaying) {
             sleepTimerRef.current = setTimeout(() => {
-                setSleepTimer(prev => {
-                    const newTime = prev - 1;
-                    if (newTime <= 0) {
-                        if (audioRef.current) {
-                            audioRef.current.pause();
-                        }
-                        return 0; // Timer finished
-                    }
-                    return newTime; // Continue countdown
-                });
+                const newTime = sleepTimer - 1;
+                if (newTime <= 0) {
+                    if (audioRef.current) audioRef.current.pause();
+                    setSleepTimer(0);
+                } else {
+                    setSleepTimer(newTime);
+                }
             }, 1000);
         }
-
-        // Cleanup on unmount or when dependencies change
-        return () => {
-            if (sleepTimerRef.current) {
-                clearTimeout(sleepTimerRef.current);
-            }
-        };
+        return () => clearTimeout(sleepTimerRef.current);
     }, [sleepTimer, isPlaying, audioRef]);
 
     // Cleanup Blob URLs Effect
     useEffect(() => {
+        const currentAudioUrl = audiobook.audioUrl;
         return () => {
-            clips.forEach(clip => URL.revokeObjectURL(clip.clipBlobUrl));
+            if (currentAudioUrl && currentAudioUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(currentAudioUrl);
+            }
         };
-    }, [clips]);
+    }, [audiobook.audioUrl]);
 
-    const handleFileSelect = useCallback(async (file: File) => {
-        if (!file) return;
-
+    const loadBook = async (fileKey: string) => {
+        // If a book is already loaded and we're switching to a different one,
+        // save the current book's state immediately to not lose progress.
+        if (selectedFile?.name && selectedFile.name !== fileKey) {
+            saveState();
+        }
+        
         setIsParsing(true);
-        setSelectedFile(file);
+        try {
+            const storedBook = await getBook(fileKey);
+            if (!storedBook) throw new Error("Book not found in DB");
+    
+            const { fileBuffer, ...metadata } = storedBook;
+            
+            if (audiobook.audioUrl && audiobook.audioUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(audiobook.audioUrl);
+            }
+            const audioUrl = URL.createObjectURL(new Blob([fileBuffer]));
+    
+            setAudiobook({
+                ...metadata,
+                audioUrl,
+                transcript: [] // Transcript is not persisted
+            });
+            setSelectedFile({ name: fileKey });
+    
+            const savedData = JSON.parse(localStorage.getItem('audiobookPlayerData') || '{}');
+            const bookData = savedData.bookData?.[fileKey];
+    
+            setBookmarks(bookData?.bookmarks || []);
+            
+            // FIX: When loading a book, update the audio URL for all its clips
+            // because the blob URL is regenerated each time.
+            const loadedClips = bookData?.clips || [];
+            const updatedClips = loadedClips.map(clip => ({
+                ...clip,
+                originalAudioUrl: audioUrl
+            }));
+            setClips(updatedClips);
+            
+            const seekTime = bookData?.currentTime || 0;
+
+            if (audioRef.current) {
+                const onCanPlay = () => {
+                    seekTo(seekTime);
+                    audioRef.current.removeEventListener('canplay', onCanPlay);
+                };
+                audioRef.current.addEventListener('canplay', onCanPlay);
+                if (audioRef.current.readyState >= 3) {
+                   onCanPlay();
+                }
+            } else {
+                setCurrentTime(seekTime);
+            }
+            
+            const chapterIndex = metadata.chapters.findIndex((chap, i) => {
+                const nextChap = metadata.chapters[i + 1];
+                return seekTime >= chap.startTime && (!nextChap || seekTime < nextChap.startTime);
+            });
+            setCurrentChapter(chapterIndex > -1 ? chapterIndex : 0);
+    
+            setShowFileSelector(false);
+            setIsPlaying(false);
+    
+        } catch (error) {
+            console.error("Error loading book from DB:", error);
+            alert("Sorry, there was an error loading that book from your library.");
+        } finally {
+            setIsParsing(false);
+        }
+    };
+    
+    const handleFileSelect = useCallback(async (file) => {
+        if (!file) return;
+        setIsParsing(true);
         
         try {
             const fileBuffer = await file.arrayBuffer();
-            const audioUrl = URL.createObjectURL(new Blob([fileBuffer], { type: file.type }));
             const filename = file.name.replace(/\.[^/.]+$/, "");
             
             let chapters: Chapter[] = [{ id: 1, title: "Start", startTime: 0 }];
             if (file.name.endsWith('.m4b') || file.type === 'audio/mp4' || file.type === 'audio/x-m4a') {
                 try {
                     const parsedChapters = await parseM4BChapters(fileBuffer);
-                    if (parsedChapters.length > 0) {
-                        chapters = parsedChapters;
-                    }
+                    if (parsedChapters.length > 0) chapters = parsedChapters;
                 } catch (error) {
                     console.warn("Could not parse chapter data:", error);
-                    // Fallback to default single chapter
                 }
             }
-
-            const newAudiobook: Audiobook = {
+            
+            const newBookForDB: StoredAudiobook = {
+                key: file.name,
                 title: filename,
                 author: "Unknown Author",
                 narrator: "Unknown Narrator",
                 cover: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='300' viewBox='0 0 200 300'%3E%3Crect width='200' height='300' fill='%231f2937'/%3E%3Ctext x='100' y='140' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3E${filename.substring(0, 20)}%3C/text%3E%3Ctext x='100' y='160' text-anchor='middle' fill='white' font-size='12' font-family='sans-serif'%3EAudiobook%3C/text%3E%3C/svg%3E`,
                 chapters,
-                audioUrl: audioUrl,
-                transcript: []
+                fileBuffer
             };
-            setAudiobook(newAudiobook);
-            setShowFileSelector(false);
-            setCurrentTime(0);
-            setCurrentChapter(0);
-            setIsPlaying(false);
-            setBookmarks([]);
-            setClips([]);
+    
+            await addBook(newBookForDB);
+    
+            const { fileBuffer: _, ...bookForLibrary } = newBookForDB;
+            setLibrary(prev => {
+                const existingIndex = prev.findIndex(b => b.key === bookForLibrary.key);
+                if (existingIndex > -1) {
+                    const newLibrary = [...prev];
+                    newLibrary[existingIndex] = bookForLibrary;
+                    return newLibrary;
+                }
+                return [...prev, bookForLibrary];
+            });
+    
+            await loadBook(file.name);
+    
         } catch (error) {
-            console.error("Error processing file:", error);
-            alert("Sorry, there was an error loading that file.");
+            console.error("Error processing and saving file:", error);
+            alert("Sorry, there was an error saving that file to your library.");
         } finally {
             setIsParsing(false);
         }
-    }, []);
+    }, [audioRef]);
 
-    const seekTo = useCallback((time: number) => {
-        if (audioRef.current) {
+    const seekTo = useCallback((time) => {
+        if (audioRef.current && isFinite(time)) {
             audioRef.current.currentTime = time;
             setCurrentTime(time);
         }
@@ -216,18 +409,18 @@ export const useAudioPlayer = (
         }
     }, [isPlayingClip, audiobook.audioUrl, audioRef, clipAudioRef]);
     
-    const skip = useCallback((amount: number) => {
+    const skip = useCallback((amount) => {
         seekTo(Math.max(0, Math.min(duration, currentTime + amount)));
     }, [currentTime, duration, seekTo]);
 
     const addBookmark = useCallback(() => {
-        const newBookmark: Bookmark = {
+        const newBookmark = {
             id: Date.now(),
             time: currentTime,
             title: `Bookmark at ${formatTime(currentTime)}`,
             chapter: currentChapter
         };
-        setBookmarks(prev => [...prev, newBookmark]);
+        setBookmarks(prev => [...prev, newBookmark].sort((a,b) => a.time - b.time));
     }, [currentTime, currentChapter]);
 
     const createClip = useCallback(async () => {
@@ -240,11 +433,7 @@ export const useAudioPlayer = (
         const clipEnd = currentTime;
         const clipDuration = clipEnd - clipStart;
 
-        const simulatedClipBlob = new Blob(
-            [`Simulated audio clip from ${formatTime(clipStart)} to ${formatTime(clipEnd)}`],
-            { type: 'audio/mpeg' }
-        );
-        const clipBlobUrl = URL.createObjectURL(simulatedClipBlob);
+        // The actual playback uses the original audio file and seeks to the correct time.
         const clipText = `Audio clip from ${formatTime(clipStart)} to ${formatTime(clipEnd)}. [Transcription would appear here]`;
 
         const newClip: Clip = {
@@ -257,7 +446,6 @@ export const useAudioPlayer = (
             chapter: currentChapter,
             createdAt: new Date().toLocaleDateString(),
             originalAudioUrl: audiobook.audioUrl,
-            clipBlobUrl,
             originalStartTime: clipStart,
             originalEndTime: clipEnd
         };
@@ -266,7 +454,7 @@ export const useAudioPlayer = (
         alert(`Audio clip created! Duration: ${Math.round(clipDuration)} seconds`);
     }, [currentTime, currentChapter, audiobook.audioUrl]);
 
-    const playClip = useCallback((clip: Clip) => {
+    const playClip = useCallback((clip) => {
         setSavedBookPosition(currentTime);
         if (isPlaying && audioRef.current) {
             audioRef.current.pause();
@@ -283,7 +471,7 @@ export const useAudioPlayer = (
         if(isPlayingClip){
             clipAudioRef.current.pause();
         } else {
-            clipAudioRef.current.src = currentClip.originalAudioUrl!;
+            clipAudioRef.current.src = currentClip.originalAudioUrl;
             clipAudioRef.current.currentTime = currentClip.startTime + clipCurrentTime;
             clipAudioRef.current.volume = volume;
             clipAudioRef.current.playbackRate = playbackRate;
@@ -311,7 +499,7 @@ export const useAudioPlayer = (
         seekTo(savedBookPosition);
     }, [clipAudioRef, savedBookPosition, seekTo]);
     
-    const handleClipSeek = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const handleClipSeek = useCallback((e) => {
         if (!currentClip || !clipAudioRef.current) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
@@ -320,24 +508,22 @@ export const useAudioPlayer = (
         setClipCurrentTime(newRelativeTime);
     }, [clipAudioRef, currentClip]);
 
-    const deleteClip = useCallback((clipId: number) => {
-        const clipToDelete = clips.find(c => c.id === clipId);
-        if (clipToDelete) URL.revokeObjectURL(clipToDelete.clipBlobUrl);
+    const deleteClip = useCallback((clipId) => {
         setClips(prev => prev.filter(c => c.id !== clipId));
-    }, [clips]);
+    }, []);
     
-    const changePlaybackRate = useCallback((rate: number) => {
+    const changePlaybackRate = useCallback((rate) => {
         setPlaybackRate(rate);
         if (audioRef.current) audioRef.current.playbackRate = rate;
     }, [audioRef]);
     
-    const changeVolume = useCallback((vol: number) => {
+    const changeVolume = useCallback((vol) => {
         setVolume(vol);
         if (audioRef.current) audioRef.current.volume = vol;
     }, [audioRef]);
     
-    const executeBluetoothAction = useCallback((action: string) => {
-        const actions: { [key: string]: () => void } = {
+    const executeBluetoothAction = useCallback((action) => {
+        const actions = {
             'Rewind 10 s': () => skip(-10),
             'Rewind 30 s': () => skip(-30),
             'Rewind 45 s': () => skip(-45),
@@ -361,12 +547,12 @@ export const useAudioPlayer = (
         audiobook, selectedFile, isPlaying, currentTime, duration, playbackRate, volume, sleepTimer,
         bookmarks, clips, currentChapter, isCreatingClip, isParsing, showSettings, showSleepTimer, showClips,
         showFileSelector, showChapterSelector, showClipPlayer, currentClip, isPlayingClip, clipCurrentTime,
-        showReport,
+        showReport, stats, library,
         bluetoothControls, setBluetoothControls,
-        handleFileSelect, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
+        handleFileSelect, loadBook, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
         toggleClipPlayPause, stopClipPlayback, closeClipPlayer, handleClipSeek, deleteClip,
         changePlaybackRate, changeVolume, executeBluetoothAction,
         setSleepTimer, setShowSettings, setShowSleepTimer, setShowClips, setShowFileSelector,
-        setShowChapterSelector, setShowClipPlayer, setShowReport
+        setShowChapterSelector, setShowReport
     };
 };

@@ -4,8 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Smart Audiobook Player</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#111827" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -14,13 +17,14 @@
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
     "lucide-react": "https://esm.sh/lucide-react@^0.539.0",
     "chart.js": "https://esm.sh/chart.js@^4.4.3",
-    "react-chartjs-2": "https://esm.sh/react-chartjs-2@^5.2.0"
+    "react-chartjs-2": "https://esm.sh/react-chartjs-2@^5.2.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.14.0"
   }
 }
 </script>
 </head>
 <body class="bg-black">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="text/babel" data-type="module" src="/index.jsx"></script>
 </body>
 </html>
