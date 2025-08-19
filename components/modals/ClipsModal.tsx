@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const ClipsModal = ({ isOpen, onClose, clips, onPlayClip, onJumpToClipStart, onDeleteClip }) => {
+const ClipsModal = ({ isOpen, onClose, clips, onPlayClip, onJumpToClipStart, onDeleteClip, onDownloadClip, isDownloadingClipId }) => {
     if (!isOpen) return null;
 
     return (
@@ -25,6 +25,13 @@ const ClipsModal = ({ isOpen, onClose, clips, onPlayClip, onJumpToClipStart, onD
                                     <div className="flex items-center space-x-3 flex-shrink-0 ml-2">
                                         <button onClick={() => onPlayClip(clip)} className="text-violet-400 hover:text-violet-300 text-sm font-medium">Play</button>
                                         <button onClick={() => { onJumpToClipStart(clip.originalStartTime); onClose(); }} className="text-green-400 hover:text-green-300 text-sm font-medium">Go to</button>
+                                        <button
+                                            onClick={() => onDownloadClip(clip)}
+                                            disabled={isDownloadingClipId !== null}
+                                            className="text-blue-400 hover:text-blue-300 text-sm font-medium disabled:opacity-50 disabled:cursor-wait"
+                                        >
+                                            {isDownloadingClipId === clip.id ? 'Saving...' : 'Download'}
+                                        </button>
                                         <button onClick={() => onDeleteClip(clip.id)} className="text-red-400 hover:text-red-300 text-sm font-medium">Delete</button>
                                     </div>
                                 </div>

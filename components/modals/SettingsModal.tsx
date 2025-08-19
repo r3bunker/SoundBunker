@@ -22,9 +22,21 @@ const SettingsModal = ({ isOpen, onClose, bluetoothControls, setBluetoothControl
                                     {BLUETOOTH_ACTION_OPTIONS.map(o => <option key={o} value={o} className="bg-slate-800">{o}</option>)}
                                 </select>
                             </div>
+                             <div>
+                                <label className="block text-gray-300 text-sm mb-2">Previous file button (long press)</label>
+                                <select value={bluetoothControls.previousFileLong} onChange={(e) => setBluetoothControls(c => ({ ...c, previousFileLong: e.target.value }))} className="w-full p-3 bg-black/30 text-white rounded-lg border border-white/10 focus:ring-violet-500 focus:border-violet-500">
+                                    {BLUETOOTH_ACTION_OPTIONS.map(o => <option key={o} value={o} className="bg-slate-800">{o}</option>)}
+                                </select>
+                            </div>
                             <div>
                                 <label className="block text-gray-300 text-sm mb-2">Next file button</label>
                                 <select value={bluetoothControls.nextFile} onChange={(e) => setBluetoothControls(c => ({ ...c, nextFile: e.target.value }))} className="w-full p-3 bg-black/30 text-white rounded-lg border border-white/10 focus:ring-violet-500 focus:border-violet-500">
+                                    {BLUETOOTH_ACTION_OPTIONS.map(o => <option key={o} value={o} className="bg-slate-800">{o}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-gray-300 text-sm mb-2">Next file button (long press)</label>
+                                <select value={bluetoothControls.nextFileLong} onChange={(e) => setBluetoothControls(c => ({ ...c, nextFileLong: e.target.value }))} className="w-full p-3 bg-black/30 text-white rounded-lg border border-white/10 focus:ring-violet-500 focus:border-violet-500">
                                     {BLUETOOTH_ACTION_OPTIONS.map(o => <option key={o} value={o} className="bg-slate-800">{o}</option>)}
                                 </select>
                             </div>
@@ -36,9 +48,11 @@ const SettingsModal = ({ isOpen, onClose, bluetoothControls, setBluetoothControl
                     </div>
                     <div className="pt-4 border-t border-white/10">
                         <h5 className="text-sm text-gray-400 mb-3">Test Bluetooth Controls:</h5>
-                        <div className="flex space-x-3">
-                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.nextFile : bluetoothControls.previousFile)} className="flex-1 p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Previous</button>
-                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.previousFile : bluetoothControls.nextFile)} className="flex-1 p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Next</button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.nextFile : bluetoothControls.previousFile)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Previous</button>
+                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.previousFile : bluetoothControls.nextFile)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Next</button>
+                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.nextFileLong : bluetoothControls.previousFileLong)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Previous (Long)</button>
+                            <button onClick={() => executeBluetoothAction(bluetoothControls.swapButtons ? bluetoothControls.previousFileLong : bluetoothControls.nextFileLong)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-sm transition-colors">Next (Long)</button>
                         </div>
                     </div>
                 </div>

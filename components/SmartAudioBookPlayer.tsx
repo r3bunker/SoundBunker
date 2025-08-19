@@ -20,9 +20,9 @@ const SmartAudioBookPlayer = () => {
         audiobook, selectedFile, isPlaying, currentTime, duration, playbackRate, sleepTimer,
         bookmarks, clips, currentChapter, isCreatingClip, isParsing, showSettings, showSleepTimer, showClips,
         showFileSelector, showChapterSelector, showClipPlayer, currentClip, isPlayingClip, clipCurrentTime,
-        showReport, stats, bluetoothControls, setBluetoothControls, library,
+        showReport, stats, bluetoothControls, setBluetoothControls, library, isDownloadingClipId,
         handleFileSelect, loadBook, seekTo, togglePlayPause, skip, addBookmark, createClip, playClip,
-        toggleClipPlayPause, stopClipPlayback, closeClipPlayer, handleClipSeek, deleteClip,
+        toggleClipPlayPause, stopClipPlayback, closeClipPlayer, handleClipSeek, deleteClip, downloadClip,
         changePlaybackRate, executeBluetoothAction,
         setSleepTimer, setShowSettings, setShowSleepTimer, setShowClips, setShowFileSelector,
         setShowChapterSelector, setShowReport
@@ -147,7 +147,7 @@ const SmartAudioBookPlayer = () => {
                 </footer>
             )}
 
-            <ClipsModal isOpen={showClips} onClose={() => setShowClips(false)} clips={clips} onPlayClip={playClip} onJumpToClipStart={seekTo} onDeleteClip={deleteClip} />
+            <ClipsModal isOpen={showClips} onClose={() => setShowClips(false)} clips={clips} onPlayClip={playClip} onJumpToClipStart={seekTo} onDeleteClip={deleteClip} onDownloadClip={downloadClip} isDownloadingClipId={isDownloadingClipId} />
             {currentClip && <ClipPlayerModal isOpen={showClipPlayer} onClose={closeClipPlayer} clip={currentClip} isPlaying={isPlayingClip} currentTime={clipCurrentTime} onTogglePlay={toggleClipPlayPause} onStop={stopClipPlayback} onSeek={handleClipSeek} onGoToBook={seekTo} audiobookTitle={audiobook.title}/>}
             <ChapterSelectorModal isOpen={showChapterSelector} onClose={() => setShowChapterSelector(false)} chapters={audiobook.chapters} currentChapter={currentChapter} onSelectChapter={(index) => seekTo(audiobook.chapters[index].startTime)} />
             <FileSelectorModal isOpen={showFileSelector} onClose={() => selectedFile && setShowFileSelector(false)} onFileSelect={handleFileSelect} isParsing={isParsing} library={library} onLoadBook={loadBook} canBeClosed={!!selectedFile} />
